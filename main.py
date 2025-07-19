@@ -175,27 +175,45 @@ class Strategy:
         a = [*self.cutoffs]
         a[i] = LIMIT
         table = play_out_game(self.seminodes, self.play, a)
-        for j, value in table[i]:
+        for j, value in enumerate(table[i]):
             if value < j * MIN_STEP:
                 self.cutoffs[i] = j * 50
+                break
 
     def calculate_play(self, node):
         max_value = 0
         max_index = 0
-        for i in range(len(node.moves)):
-            self.play[node] = i
-            value = play_out_game(self.seminodes, self.play, self.cutoffs)
-            if value[5][0] > max_value:
+        board_state = play_out_game(self.seminodes, self.play, self.cutoffs)
+        dice = len(node.dice)
+        for i, move in enumerate(node.moves):
+            new_dice = dice - move.dice_consumed
+            if new_dice == 0:
+                new_dice = 6
+            new_score = move.score
+            if new_score >= LIMIT:
+                new_score = LIMIT
+            value = board_state[new_dice - 1][new_score // MIN_STEP]
+
+            if value > max_value:
                 max_index = i
 
         self.play[node] = max_index
 
     def advance(self):
+        while True:
+            for node in self.play:
+                self.calculate_play(node)
+                yield
+            for i in range(len(self.cutoffs)):
+                self.calculate_cutoffs(i)
+                yield
+        """
         r = random.randint(0, len(self.play) + len(self.cutoffs) - 1)
         if r < len(self.cutoffs):
             self.calculate_cutoffs(r)
         else:
             self.calculate_play(list(self.play.keys())[r - len(self.cutoffs)])
+        """
 
     def get_EV(self):
         return play_out_game(self.seminodes, self.play, self.cutoffs)
@@ -233,8 +251,13 @@ if __name__ == "__main__":
     print(get_score_by_roll([1, 1, 3, 4]))
     s, a = generate_all_nodes()
     strat = Strategy(a, s)
+    iterator = strat.advance()
     for _ in range(1000):
-        strat.advance()
+        next(iterator)
         if _ % 10 == 0:
             print(strat.get_EV()[0][0])
+        if _ % 1000 == 0:
+            print(strat.cutoffs)
+            print(strat.play)
+
     print(test_out_strat(strat.play, strat.cutoffs))
