@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import random
 
-from consts import LIMIT, MIN_STEP, STEPS
-from game import Move, Node, Seminode, State
+from .consts import LIMIT, MIN_STEP, STEPS
+from .game import Move, Node, Seminode, State
 
 
 def linear_interpolation(a, b, k):
@@ -11,20 +11,21 @@ def linear_interpolation(a, b, k):
 
 
 class PartialStrategy:
-    def __init__(self, play: dict[Node, int], cutoffs: dict[Seminode, int]):
+    def __init__(self, play: dict[Node, int], cutoffs: dict[int, int]):
         self.play = play
         self.cutoffs = cutoffs
 
     @staticmethod
-    def random(all_nodes: list[Node], all_seminodes: list[Seminode]):
+    def random(all_seminodes: list[Seminode]):
         play = {
             node: random.randint(0, len(node.moves) - 1)
-            for node in all_nodes
-            if len(node.moves) > 0
+            for seminode in all_seminodes
+            for node, _ in seminode.links
+            if node.moves
         }
 
         cutoffs = {
-            seminode: random.randint(1, STEPS + 1) * MIN_STEP
+            seminode.number_of_dice: random.randint(1, STEPS + 1) * MIN_STEP
             for seminode in all_seminodes
         }
 
@@ -36,12 +37,13 @@ class PartialStrategy:
             for node in self.play
         }
         cutoffs = {
-            seminode: int(
+            number_of_dice: int(
                 linear_interpolation(
-                    self.cutoffs[seminode], other.cutoffs[seminode], random.random()
+                    self.cutoffs[number_of_dice],
+                    other.cutoffs[number_of_dice], random.random()
                 )
             )
-            for seminode in self.cutoffs
+            for number_of_dice in self.cutoffs
         }
         return PartialStrategy(play, cutoffs)
 
@@ -59,43 +61,37 @@ class PartialStrategy:
 
 
 class Strategy:
+    strats: dict[State, PartialStrategy]
+    all_seminodes: list[Seminode]
+
     def __init__(
         self,
         strats: dict[State, PartialStrategy] | None,
-        all_nodes: list[Node],
         all_seminodes: list[Seminode],
     ):
         if strats is None:
             self.strats = {
-                State(home_score, away_score): PartialStrategy.random(
-                    all_nodes, all_seminodes
-                )
+                State(home_score, away_score): PartialStrategy.random(all_seminodes)
                 for home_score in range(0, LIMIT, MIN_STEP)
                 for away_score in range(0, LIMIT, MIN_STEP)
             }
         else:
             self.strats = strats
-        self.all_nodes = all_nodes
-        self.all_seminodes: list[Seminode] = all_seminodes
 
-    def breed(self, other):
+        self.all_seminodes = all_seminodes
+
+    def breed(self, other: Strategy):
         return Strategy(
             {
-                state: self.strats[state].breed(other.strats[state])
-                for state in self.strats
+                state: strat.breed(other.strats[state])
+                for state, strat in self.strats.items()
             },
-            self.all_nodes,
             self.all_seminodes,
         )
 
-    def __del__(self):
-        for strat in self.strats.values():
-            del strat
-
     def mutate(self):
         return Strategy(
-            {state: self.strats[state].mutate() for state in self.strats},
-            self.all_nodes,
+            {state: strat.mutate() for state, strat in self.strats.items()},
             self.all_seminodes,
         )
 
@@ -119,10 +115,10 @@ class Strategy:
             if dice == -1:
                 dice = 5
             assert dice >= 0
-            if score >= strat.cutoffs[self.all_seminodes[dice]]:
+            if score >= strat.cutoffs[dice]:
                 return score
 
-    def play_single_game(self, other: Strategy):
+    def play_single_game(self, other: Strategy) -> tuple[bool, int]:
         state = State(0, 0)
 
         rounds = 1
