@@ -74,3 +74,56 @@ for generation in range(200):
             sum(population[1].play_single_game(population[0])[1] for _ in range(20))
             / 20,
         )
+
+# with mp.Pool() as pool:
+#     population = pool.starmap(
+#         Strategy, [(None, seminodes) for _ in range(POP_SIZE)]
+#     )
+#     print("Population created")
+#
+#     for generation in range(200):
+#         print(f"Generation {generation}")
+#
+#         random.shuffle(population)
+#         print("Population shuffled")
+#
+#         # selection
+#         parents = pool.starmap(
+#             select_better, zip(population[:HALF_POP_SIZE], population[HALF_POP_SIZE:])
+#         )
+#         print("Parents selected")
+#
+#         # breed
+#         new_population = [
+#             child
+#             for bunch in pool.starmap(
+#                 crossbreed_and_mutate,
+#                 zip(parents[:QUARTER_POP_SIZE], parents[QUARTER_POP_SIZE:]),
+#             )
+#             for child in bunch
+#         ]
+#         print("Children bred")
+#
+#         # grow
+#         population = new_population
+#
+#         all_objects = gc.get_objects()
+#         print(f"Number of tracked objects: {len(all_objects)}")
+#         del all_objects
+#
+#         gc.collect()
+#
+#         all_objects = gc.get_objects()
+#         print(f"Number of tracked left objects: {len(all_objects)}")
+#         del all_objects
+#
+#         if generation % 10 == 0:
+#             with open(f"gen {generation}", "wb") as file:
+#                 pickle.dump(population, file)
+#
+#             # measure
+#             print(
+#                 "average game length:",
+#                 sum(population[1].play_single_game(population[0])[1] for _ in range(20))
+#                 / 20,
+#             )
