@@ -82,9 +82,10 @@ class Node:
         sorted_dice = tuple(sorted(dice))
         self.dice = sorted_dice
         self.moves = score_by_rolls_sorted(sorted_dice)
+        self.hash = sum(v * 6**i for i, v in enumerate(self.dice))
 
     def __hash__(self):
-        return sum(v * 6**i for i, v in enumerate(self.dice))
+        return self.hash
 
     def __str__(self):
         return "".join(map(str, self.dice))
