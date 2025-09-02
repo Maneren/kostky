@@ -34,7 +34,7 @@ class State:
 def score_by_rolls_sorted(dice: tuple[int, ...]) -> list[Move]:
     rolls: set[tuple[int, ...]] = {()}
     for n in dice:
-        rolls |= {(*s, n) for s in rolls}
+        rolls.update((*s, n) for s in rolls)
 
     scores = (score_dice_set(roll) for roll in rolls if roll)
 
@@ -52,8 +52,8 @@ def score_dice_set(dice: tuple[int, ...]) -> Move | None:
         by_type[:] -= 1
         score += 1500
 
-    if all(by_type[1:6] == 1):
-        by_type[1:6] -= 1
+    if all(by_type[1:] == 1):
+        by_type[1:] -= 1
         score += 750
 
     if all(by_type[:5] == 1):
@@ -61,8 +61,10 @@ def score_dice_set(dice: tuple[int, ...]) -> Move | None:
         score += 500
 
     for i in range(1, 6):
-        if by_type[i] >= 3:
-            score += 100 * (i + 1) * 2 ** (by_type[i] - 3)
+        count = by_type[i]
+        die = i + 1
+        if count >= 3:
+            score += 100 * die * 2 ** (count - 3)
             by_type[i] = 0
 
     if by_type[0] >= 3:
