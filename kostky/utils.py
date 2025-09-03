@@ -22,3 +22,7 @@ def dot_product(a: Iterable[int], b: Iterable[int]) -> int:
 
 def lerp(a: int, b: int, k: float) -> int:
     return floor(a * (1 - k) + b * k)
+
+
+def split_in_half[T](list: list[T]) -> tuple[list[T], list[T]]:
+    return list[: len(list) // 2], list[len(list) // 2 :]
