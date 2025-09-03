@@ -11,14 +11,17 @@ def linear_interpolation(a, b, k):
 
 
 class PartialStrategy:
-    def __init__(self, play: dict[Node, int], cutoffs: dict[int, int]):
+    play: dict[Node, Move]
+    cutoffs: dict[int, int]
+
+    def __init__(self, play: dict[Node, Move], cutoffs: dict[int, int]):
         self.play = play
         self.cutoffs = cutoffs
 
     @staticmethod
     def random(all_seminodes: list[Seminode]):
         play = {
-            node: random.randint(0, len(node.moves) - 1)
+            node: random.choice(node.moves)
             for seminode in all_seminodes
             for node, _ in seminode.links
             if node.moves
@@ -33,14 +36,15 @@ class PartialStrategy:
 
     def breed(self, other: PartialStrategy):
         play = {
-            node: random.choice([self.play[node], other.play[node]])
+            node: random.choice((self.play[node], other.play[node]))
             for node in self.play
         }
         cutoffs = {
             number_of_dice: int(
                 linear_interpolation(
                     self.cutoffs[number_of_dice],
-                    other.cutoffs[number_of_dice], random.random()
+                    other.cutoffs[number_of_dice],
+                    random.random(),
                 )
             )
             for number_of_dice in self.cutoffs
@@ -49,13 +53,13 @@ class PartialStrategy:
 
     def mutate(self):
         # mutate play
-        play = {**self.play}
-        cutoffs = {**self.cutoffs}
+        play = self.play.copy()
+        cutoffs = self.cutoffs.copy()
         if random.random() >= 0.5:
             to_mutate = random.choice(list(play.keys()))
-            play[to_mutate] = random.randint(0, len(to_mutate.moves) - 1)
+            play[to_mutate] = random.choice(to_mutate.moves)
         else:
-            to_mutate = random.choice(list(cutoffs.keys()))
+            to_mutate = random.randint(1, 6)
             cutoffs[to_mutate] = random.randint(1, STEPS + 1) * MIN_STEP
         return PartialStrategy(play, cutoffs)
 
