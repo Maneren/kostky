@@ -1,12 +1,11 @@
 from collections import Counter
-from operator import mul
-from typing import Iterable
+from .utils import dot_product, factorial, product
 import numpy as np
 import sys
 from dataclasses import dataclass
 import functools
 import itertools
-from .consts import LIMIT
+from .consts import DICE_COUNT, DICE_SIZE, LIMIT
 
 
 @dataclass
@@ -21,7 +20,7 @@ class State:
     away: int
 
     def __hash__(self):
-        return int(self.home * 1000000 + self.away)
+        return int(self.home * 10**6 + self.away)
 
     def finished(self):
         return self.home >= LIMIT or self.away >= LIMIT
@@ -34,7 +33,7 @@ class State:
 def score_by_rolls_sorted(dice: tuple[int, ...]) -> list[Move]:
     rolls: set[tuple[int, ...]] = {()}
     for n in dice:
-        rolls.update((*s, n) for s in rolls)
+        rolls.update([(*s, n) for s in rolls])
 
     scores = (score_dice_set(roll) for roll in rolls if roll)
 
@@ -42,7 +41,7 @@ def score_by_rolls_sorted(dice: tuple[int, ...]) -> list[Move]:
 
 
 def score_dice_set(dice: tuple[int, ...]) -> Move | None:
-    by_type = np.zeros(6, int)
+    by_type = np.zeros(DICE_SIZE, np.uint)
     for die in dice:
         by_type[die - 1] += 1
 
@@ -60,7 +59,7 @@ def score_dice_set(dice: tuple[int, ...]) -> Move | None:
         by_type[:5] -= 1
         score += 500
 
-    for i in range(1, 6):
+    for i in range(1, DICE_COUNT):
         count = by_type[i]
         die = i + 1
         if count >= 3:
@@ -80,11 +79,13 @@ def score_dice_set(dice: tuple[int, ...]) -> Move | None:
 
 
 class Node:
+    HASH_VECTOR: list[int] = [DICE_SIZE**i for i in range(DICE_COUNT)]
+
     def __init__(self, dice):
         sorted_dice = tuple(sorted(dice))
         self.dice = sorted_dice
         self.moves = score_by_rolls_sorted(sorted_dice)
-        self.hash = sum(v * 6**i for i, v in enumerate(self.dice))
+        self.hash = dot_product(sorted_dice, self.HASH_VECTOR)
 
     def __hash__(self):
         return self.hash
@@ -99,23 +100,11 @@ class Node:
         return self.dice == other.dice
 
 
-@functools.cache
-def factorial(x):
-    if x < 0:
-        raise ValueError("negative factorial!")
-
-    return 1 if x == 0 else factorial(x - 1) * x
-
-
-def product(iterable: Iterable[int]) -> int:
-    return functools.reduce(mul, iterable)
-
-
 class Seminode:
     def __init__(self, number_of_dice: int):
         self.number_of_dice = number_of_dice
 
-        chance: float = factorial(self.number_of_dice) / 6**self.number_of_dice
+        chance: float = factorial(self.number_of_dice) / DICE_SIZE**self.number_of_dice
         self.links: list[tuple[Node, float]] = [
             (
                 Node(dice),
@@ -130,11 +119,10 @@ class Seminode:
         return self.number_of_dice
 
 
-def generate_all_nodes() -> tuple[list[Seminode], list[Node]]:
+def generate_all_nodes() -> list[Seminode]:
     seminodes = [Seminode(length) for length in range(1, 7)]
-    all_nodes = [node for seminode in seminodes for node, _ in seminode.links]
     print(
-        f"Nodes have a total of {sum(len(node.moves) for node in all_nodes)} moves",
+        f"Nodes have a total of {sum(len(node.moves) for seminode in seminodes for node, _ in seminode.links)} moves",
         file=sys.stderr,
     )
-    return seminodes, all_nodes
+    return seminodes
